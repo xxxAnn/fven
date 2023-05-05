@@ -2,7 +2,7 @@ pub type Nums = f32;
 
 pub struct Model {
     layers: Vec<Layer>,
-    __nnums: Vec<u32>
+    __nnums: Vec<(usize, usize)>
 }
 
 pub enum Layer {
@@ -33,9 +33,28 @@ impl Layer {
             activation_function: Box::new(activation_function)
         })
     }
+
+    pub fn update(&mut self, biases: &[f32], weights: &[f32]) {
+        if let Layer::Complete(c) = self {
+            let mut i = 0;
+            let mut u = 0;
+            let wlen = weights.len()/biases.len();
+            for node in &mut c.nodes {
+                node.bias = biases[i];
+                node.weights = weights[u..u+wlen].to_vec();
+                u += wlen;
+                i += 1
+            }
+        }
+    }
 }
 
 impl Model {
+
+    pub fn new(lyrs: &[Layer]) -> Self {
+        todo!()
+    }
+
     pub fn get_parameters(&self) -> Vec<Nums> {
         self.layers.iter().map(|l| {
             if let Layer::Complete(ly) = l {
@@ -69,10 +88,22 @@ impl Model {
     }
 
     pub fn set_parameters(&mut self, parameters: Vec<Nums>) {
-        for layer in &mut self.layers {
-            // layer.update() <- give it the right number of stuff based on __nnums
+        if self.__nnums.len() != self.layers.len() {
+            // error
         }
-        todo!()
+        let mut i = 0;
+        let mut u = 0;
+        for layer in &mut self.layers {
+            let plus = self.__nnums[i];
+            let biases = &parameters[u..u+plus.0];
+            u += plus.0;
+            let weights = &parameters[u..u+plus.1];
+            u += plus.1;
+            
+            layer.update(biases, weights);
+            
+            i += 1
+        }
     }
 }
 
