@@ -1,9 +1,10 @@
+
 use std::rc::Rc;
 
 use rand::Rng;
 
-pub type Nums = f32;
-pub type FvenResult<T> = Result<T, &'static str>;
+use crate::FvenResult;
+use crate::Nums;
 
 pub struct Model {
     layers: Vec<Layer>,
@@ -218,53 +219,4 @@ impl Model {
             i += 1
         }
     }
-}
-
-
-fn sin(el: &[Nums]) -> Vec<f32> {
-    el.iter().map(|x| x.sin()).collect::<Vec<Nums>>()
-}
-
-fn default(el: &[Nums]) -> Vec<f32> {
-    el.to_vec()
-}
-
-fn mse(el: &[Nums], elp: &[Nums]) -> Nums {
-    (0..el.len()).map(|i| (el[i]-elp[i]).powi(2)).sum::<Nums>()/el.len() as Nums
-}
-
-fn main() {
-    let mut m = Model::new(
-        &[
-            Layer::new(2, |x| x.to_vec()),
-            Layer::new(3, default)
-        ],
-        1
-    );
-
-    println!("{:?}", m.predict(&[3.]));
-
-    for _ in 0..10000 {
-        m.train(mse, 
-            &[
-                (
-                    &[1.], // inputs
-                    &[3., 4., 5.] // outputs
-                ),
-                (
-                    &[2.],
-                    &[6., 8., 10.]
-                ),
-                (
-                    &[3.],
-                    &[9., 12., 15.]
-                ),
-                (
-                    &[4.],
-                    &[12., 16., 20.]
-                )
-            ]
-        );
-    }
-    println!("{:?}", m.predict(&[5.]));
 }
