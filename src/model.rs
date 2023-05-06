@@ -8,7 +8,8 @@ use crate::Nums;
 
 pub struct Model {
     layers: Vec<Layer>,
-    __nnums: Vec<(usize, usize)>
+    __nnums: Vec<(usize, usize)>,
+    lr: f32
 }
 
 pub enum Layer {
@@ -106,7 +107,7 @@ impl Node {
 
 impl Model {
 
-    pub fn new(lyrs: &[Layer], inputs: usize) -> Self {
+    pub fn new(lyrs: &[Layer], inputs: usize, lr: f32) -> Self {
         let mut prev = inputs;
         let mut layers = Vec::new();
         let mut __nnums = Vec::new();
@@ -123,7 +124,8 @@ impl Model {
 
         Self {
             layers,
-            __nnums
+            __nnums,
+            lr
         }
     }
 
@@ -159,11 +161,10 @@ impl Model {
 
     pub fn train(&mut self, loss: impl Fn(&[Nums], &[Nums]) -> Nums, data: &[(&[Nums], &[Nums])]) {
         let deltas = self.get_deltas(loss, data);
-        let lr = 0.01;
         let mut params = self.get_parameters();
 
         for i in 0..deltas.len() {
-            params[i] -= lr*deltas[i];
+            params[i] -= self.lr*deltas[i];
         }
 
         self.set_parameters(params)
