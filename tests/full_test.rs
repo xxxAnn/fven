@@ -1,5 +1,6 @@
 use fven::prelude::*;
 
+
 #[test]
 fn test() {
     let mut m = Model::new(
@@ -13,25 +14,14 @@ fn test() {
     println!("Before training: {:?}", m.predict(&[3.]));
 
     for _ in 0..10000 {
-        m.train(loss::mse, 
-            &[
-                (
-                    &[1.], // inputs
-                    &[3., 4., 5.] // outputs
-                ),
-                (
-                    &[2.],
-                    &[6., 7., 8.]
-                ),
-                (
-                    &[3.],
-                    &[9., 10., 11.]
-                ),
-                (
-                    &[4.],
-                    &[12., 13., 14.]
-                )
-            ]
+        m.train(
+            loss::mse, 
+            training_data!(
+                [1.] => [3., 4., 5.],
+                [2.] => [6., 7., 8.],
+                [3.] => [9., 10., 11.],
+                [4.] => [12., 13., 14.]
+            )
         );
     }
     

@@ -6,3 +6,16 @@ pub mod activation;
 pub mod loss;
 pub mod model;
 pub mod prelude;
+
+
+#[macro_export]
+macro_rules! training_data {
+    ($($i:expr => $o:expr),+) => (
+        &[
+            $((
+                &$i,
+                &$o
+            )),+
+        ]
+    )
+}

@@ -1,1 +1,1 @@
-pub use crate::{model::Model, model::Layer, activation, loss};
+pub use crate::{model::Model, model::Layer, activation, loss, training_data};
