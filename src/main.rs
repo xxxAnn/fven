@@ -1,4 +1,9 @@
+use std::rc::Rc;
+
+use rand::Rng;
+
 pub type Nums = f32;
+pub type FvenResult<T> = Result<T, &'static str>;
 
 pub struct Model {
     layers: Vec<Layer>,
@@ -9,14 +14,13 @@ pub enum Layer {
     Partial(PartialLayer),
     Complete(CompleteLayer)
 }
-
 pub struct PartialLayer {
-    activation_function: Box<dyn Fn(&[Nums]) -> Vec<Nums>>,
+    activation_function: Rc<dyn Fn(&[Nums]) -> Vec<Nums>>,
     number_of_nodes: u32
 }
 
 pub struct CompleteLayer {
-    act_fun: Box<dyn Fn(&[Nums]) -> Vec<Nums>>,
+    act_fun: Rc<dyn Fn(&[Nums]) -> Vec<Nums>>,
     nodes: Vec<Node>
 }
 
@@ -30,7 +34,7 @@ impl Layer {
     pub fn new(number_of_nodes: u32, activation_function: impl Fn(&[Nums]) -> Vec<Nums> + 'static) -> Self {
         Self::Partial(PartialLayer {
             number_of_nodes,
-            activation_function: Box::new(activation_function)
+            activation_function: Rc::new(activation_function)
         })
     }
 
@@ -45,14 +49,123 @@ impl Layer {
                 u += wlen;
                 i += 1
             }
+        } else {
+            // error 
         }
+    }
+
+    pub fn complete(&self, prev: usize) -> Self {
+        match self {
+            Layer::Partial(p) => {
+                let mut rng = rand::thread_rng();
+
+                let nodes = (0..p.number_of_nodes).map(|_| Node {
+                    bias: rng.gen(),
+                    weights: (0..prev).map(|_| rng.gen()).collect()
+                }).collect();
+
+                Layer::Complete(CompleteLayer { act_fun:  p.activation_function.clone(), nodes })
+            }
+            Layer::Complete(c) => {
+                Layer::Complete(CompleteLayer { act_fun: c.act_fun.clone(), nodes: c.nodes.clone() })
+            }
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        match self {
+            Layer::Complete(c) => {
+                c.nodes.len()
+            }
+            Layer::Partial(p) => {
+                p.number_of_nodes as usize
+            }
+        }
+    }
+
+    pub fn calc(&self, inps: &[Nums]) -> FvenResult<Vec<Nums>> {
+        if let Layer::Complete(c) = self {
+            Ok((c.act_fun)(&c.nodes.iter().map(|n| n.calc(inps).unwrap()).collect::<Vec<Nums>>()))
+        } else {
+            Err("Attempted to calculate on partially initialized layer")
+        }
+    }
+} 
+
+impl Node {
+    pub fn calc(&self, inps: &[Nums]) -> FvenResult<Nums> {
+        if inps.len() != self.weights.len() {
+            Err("Wrong number of inputs")
+        } else {
+            Ok((0..inps.len()).map(|i| inps[i]*self.weights[i]).sum::<Nums>() + self.bias)
+        }
+
     }
 }
 
 impl Model {
 
-    pub fn new(lyrs: &[Layer]) -> Self {
-        todo!()
+    pub fn new(lyrs: &[Layer], inputs: usize) -> Self {
+        let mut prev = inputs;
+        let mut layers = Vec::new();
+        let mut __nnums = Vec::new();
+        for l in lyrs.into_iter() {
+            let ly = l.complete(prev);
+            let clen = ly.len();
+
+            __nnums.push((clen, prev*clen));
+
+            prev = ly.len();
+            layers.push(ly);
+
+        }
+
+        Self {
+            layers,
+            __nnums
+        }
+    }
+
+    pub fn predict(&self, v: &[Nums]) -> Vec<Nums> {
+        let mut o = v.to_vec();
+        for layer in &self.layers {
+            o = layer.calc(&o).unwrap();
+        }
+        o
+    }
+
+    pub fn get_deltas(&mut self, loss: impl Fn(&[Nums], &[Nums]) -> Nums, data: &[(&[Nums], &[Nums])]) -> Vec<Nums> { // loss(predicted, expected)
+        let d = 0.00001;
+        let params = self.get_parameters();
+        let mut deltas = Vec::new();
+        
+        for i in 0..params.len() {
+            self.set_parameters(params.clone());
+            let fx: Nums = data.iter().map(|dat| loss(&self.predict(dat.0), dat.1)).sum();
+
+            let mut npar = self.get_parameters();
+            npar[i] += d;
+            self.set_parameters(npar);
+            let fxpd: Nums = data.iter().map(|dat| loss(&self.predict(dat.0), dat.1)).sum();
+            
+            deltas.push((fxpd-fx)/d)
+        }
+
+        self.set_parameters(params);
+
+        deltas
+    }
+
+    pub fn train(&mut self, loss: impl Fn(&[Nums], &[Nums]) -> Nums, data: &[(&[Nums], &[Nums])]) {
+        let deltas = self.get_deltas(loss, data);
+        let lr = 0.01;
+        let mut params = self.get_parameters();
+
+        for i in 0..deltas.len() {
+            params[i] -= lr*deltas[i];
+        }
+
+        self.set_parameters(params)
     }
 
     pub fn get_parameters(&self) -> Vec<Nums> {
@@ -111,6 +224,47 @@ impl Model {
 fn sin(el: &[Nums]) -> Vec<f32> {
     el.iter().map(|x| x.sin()).collect::<Vec<Nums>>()
 }
+
+fn default(el: &[Nums]) -> Vec<f32> {
+    el.to_vec()
+}
+
+fn mse(el: &[Nums], elp: &[Nums]) -> Nums {
+    (0..el.len()).map(|i| (el[i]-elp[i]).powi(2)).sum::<Nums>()/el.len() as Nums
+}
+
 fn main() {
-    Layer::new(4, sin);
+    let mut m = Model::new(
+        &[
+            Layer::new(2, |x| x.to_vec()),
+            Layer::new(3, default)
+        ],
+        1
+    );
+
+    println!("{:?}", m.predict(&[3.]));
+
+    for _ in 0..10000 {
+        m.train(mse, 
+            &[
+                (
+                    &[1.], // inputs
+                    &[3., 4., 5.] // outputs
+                ),
+                (
+                    &[2.],
+                    &[6., 8., 10.]
+                ),
+                (
+                    &[3.],
+                    &[9., 12., 15.]
+                ),
+                (
+                    &[4.],
+                    &[12., 16., 20.]
+                )
+            ]
+        );
+    }
+    println!("{:?}", m.predict(&[5.]));
 }
