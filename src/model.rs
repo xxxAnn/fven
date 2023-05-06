@@ -9,7 +9,8 @@ use crate::Nums;
 pub struct Model {
     layers: Vec<Layer>,
     __nnums: Vec<(usize, usize)>,
-    lr: f32
+    lr: f32,
+    d: f32
 }
 
 pub enum Layer {
@@ -107,7 +108,7 @@ impl Node {
 
 impl Model {
 
-    pub fn new(lyrs: &[Layer], inputs: usize, lr: f32) -> Self {
+    pub fn new(lyrs: &[Layer], inputs: usize, lr: f32, d: f32) -> Self {
         let mut prev = inputs;
         let mut layers = Vec::new();
         let mut __nnums = Vec::new();
@@ -125,7 +126,8 @@ impl Model {
         Self {
             layers,
             __nnums,
-            lr
+            lr,
+            d
         }
     }
 
@@ -138,7 +140,6 @@ impl Model {
     }
 
     pub fn get_deltas(&mut self, loss: impl Fn(&[Nums], &[Nums]) -> Nums, data: &[(&[Nums], &[Nums])]) -> Vec<Nums> { // loss(predicted, expected)
-        let d = 0.00001;
         let params = self.get_parameters();
         let mut deltas = Vec::new();
         
@@ -147,11 +148,11 @@ impl Model {
             let fx: Nums = data.iter().map(|dat| loss(&self.predict(dat.0), dat.1)).sum();
 
             let mut npar = self.get_parameters();
-            npar[i] += d;
+            npar[i] += self.d;
             self.set_parameters(npar);
             let fxpd: Nums = data.iter().map(|dat| loss(&self.predict(dat.0), dat.1)).sum();
             
-            deltas.push((fxpd-fx)/d)
+            deltas.push((fxpd-fx)/self.d)
         }
 
         self.set_parameters(params);

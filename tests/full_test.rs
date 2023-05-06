@@ -9,7 +9,8 @@ fn test() {
             Layer::new(3, activation::default)
         ],
         1,
-        0.005
+        0.005,
+        0.0000001
     );
 
     println!("Before training: {:?}", m.predict(&[5.]));
@@ -24,7 +25,7 @@ fn test() {
                 [4.] => [12., 13., 14.]
             )
         );
-        println!("{:?}", loss::mse(&m.predict(&[5.]), &[15., 16., 17.]));
+        //println!("{:?}", loss::mse(&m.predict(&[5.]), &[15., 16., 17.]));
     }
     
     println!("After training: {:?}", m.predict(&[5.]));
